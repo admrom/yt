@@ -1,0 +1,95 @@
+// Criação do botão 'Enviar Arquivo'
+const button = document.createElement('button');
+button.innerText = 'Enviar Arquivo';
+button.style.backgroundColor = 'green';
+button.style.color = 'white';
+button.style.padding = '5px';
+button.style.border = 'none';
+button.style.borderRadius = '5px';
+button.style.margin = '5px';
+
+// Criação do elemento de progresso
+const progressBar = document.createElement('div');
+progressBar.style.width = '99%';
+progressBar.style.height = '5px';
+progressBar.style.backgroundColor = 'gray';
+
+// Criação da barra de progresso dentro do elemento de progresso
+const progressBarInner = document.createElement('div');
+progressBarInner.style.width = '0%';
+progressBarInner.style.height = '100%';
+progressBarInner.style.backgroundColor = 'blue';
+
+// Adicionar a barra de progresso dentro do elemento de progresso
+progressBar.appendChild(progressBarInner);
+
+// Localização do elemento no DOM antes do qual o botão e a barra de progresso devem ser inseridos
+const targetElement = document.querySelector('.flex.flex-col.w-full.py-2.flex-grow.md\\:py-3.md\\:pl-4');
+
+// Inserir o botão e a barra de progresso no DOM antes do elemento de destino
+targetElement.parentNode.insertBefore(button, targetElement);
+targetElement.parentNode.insertBefore(progressBar, targetElement);
+
+// Manipulador de evento para quando o botão for clicado
+button.addEventListener('click', async () => {
+  // Criar elemento de input do tipo 'file'
+  const inputFile = document.createElement('input');
+  inputFile.type = 'file';
+  inputFile.accept = '.txt, .js, .py, .html, .css, .json, .csv';
+
+  // Evento para quando um arquivo for selecionado
+  inputFile.addEventListener('change', async () => {
+    const file = inputFile.files[0];
+    const fileSize = file.size;
+    const chunkSize = 15000;
+    const numChunks = Math.ceil(fileSize / chunkSize);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fileContent = event.target.result;
+      let start = 0;
+      let end = chunkSize;
+
+      for (let i = 0; i < numChunks; i++) {
+        const chunkText = fileContent.substring(start, end);
+
+        // Enviar o pedaço da conversa
+        await submitConversation(chunkText, i + 1, file.name);
+
+        // Atualizar a barra de progresso
+        progressBarInner.style.width = `${((i + 1) / numChunks) * 100}%`;
+
+        // Atualizar os índices para a próxima parte
+        start = end;
+        end = start + chunkSize;
+      }
+
+      // Verificar se o chatgpt está pronto
+      let chatgptReady = false;
+      while (!chatgptReady) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        chatgptReady = !document.querySelector('.text-2xl > span:not(.invisible)');
+      }
+
+      // Finalizar a barra de progresso
+      progressBarInner.style.backgroundColor = 'blue';
+    };
+
+    reader.readAsText(file);
+  });
+
+  // Simular o clique no elemento de input do tipo 'file'
+  inputFile.click();
+});
+
+// Função para enviar um pedaço da conversa
+async function submitConversation(text, part, filename) {
+  const textarea = document.querySelector('textarea[tabindex="0"]');
+  const enterKeyEvent = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    keyCode: 13,
+  });
+  textarea.value = `Parte ${part} de ${filename}:\n\n${text}`;
+  textarea.dispatchEvent(enterKeyEvent);
+}
